@@ -86,6 +86,7 @@ type WroteHeaderInfo struct {
 	Header     map[string][]string
 }
 
+// TODO(pteichman) "Data" is awful and "Len" is more like "WrittenLen"
 type WroteBodyChunkInfo struct {
 	Data  []byte
 	Len   int

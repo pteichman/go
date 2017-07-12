@@ -23,6 +23,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
 	"net/url"
@@ -2681,9 +2682,22 @@ func TestRequestLimit_h2(t *testing.T) { testRequestLimit(t, h2Mode) }
 func testRequestLimit(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
+	trace := &httptrace.ServerTrace{
+		GotBadRequest: func(info httptrace.BadRequestInfo) {
+			if info.StatusCode != 431 {
+				t.Fatalf("server trace: expected 431 status; got %d", info.StatusCode)
+			}
+
+			expected := "431 Request Header Fields Too Large"
+			if info.Error != expected {
+				t.Fatalf("server trace: expected %s error; got %s", expected, info.Error)
+			}
+		},
+	}
+
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
-	}), optQuietLog)
+	}), optQuietLog, optServerTrace(trace))
 	defer cst.close()
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	var bytesPerHeader = len("header12345: val12345\r\n")

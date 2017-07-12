@@ -46,31 +46,36 @@ type ServerTrace struct {
 	// BadRequestInfo has the status code of the response (the current implementation
 	// can return 431 or 400) and perhaps also the response body, which is an error string.
 	// This addresses https://github.com/golang/go/issues/18095
-	GotBadRequest (BadRequestInfo)
+	GotBadRequest func(BadRequestInfo)
 
 	// Called when receiving a request, just before calling the ServeHTTP handler.
 	// RequestInfo would likely include the URL and Headers of the request (with caveats
 	// about not mutating those values).
 	// This would satisfy https://github.com/golang/go/issues/3344 -- see the linked camlistore code.
-	GotRequest (RequestInfo)
+	GotRequest func(RequestInfo)
 
 	// Called when the handler calls WriteHeader.
 	// WriteHeaderInfo includes the status and maybe also the headers (with caveats about
 	// not mutating the headers). Or perhaps this is (status, headers) instead of WroteHeaderInfo.
 	// This addresses the current bug.
-	WroteHeader (WroteHeaderInfo)
+	WroteHeader func(WroteHeaderInfo)
 
 	// Called each time the handler calls Write. This is the data fed to the ResponseWriter,
 	// e.g., before any transfer encoding. Includes the return values of the Write call.
 	// Caveats about mutating data.
 	// This addresses the current bug.
-	WroteBodyChunk (WroteBodyChunkInfo)
+	WroteBodyChunk func(WroteBodyChunkInfo)
 
 	// Called when the ServeHTTP handler exits.
-	HandlerDone (HandlerDoneInfo)
+	HandlerDone func(HandlerDoneInfo)
 }
 
 type BadRequestInfo struct {
+	// The HTTP status code returned to clients.
+	StatusCode int
+
+	// The error reported back to clients on the HTTP status line.
+	Error string
 }
 
 type RequestInfo struct {

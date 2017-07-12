@@ -9,6 +9,7 @@ package http_test
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -71,6 +73,14 @@ const (
 
 var optQuietLog = func(ts *httptest.Server) {
 	ts.Config.ErrorLog = quietLog
+}
+
+func optServerTrace(trace *httptrace.ServerTrace) func(*httptest.Server) {
+	return func(ts *httptest.Server) {
+		ts.Config.UpdateRequestContext = func(ctx context.Context) context.Context {
+			return httptrace.WithServerTrace(ctx, trace)
+		}
+	}
 }
 
 func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {

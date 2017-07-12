@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -965,9 +966,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	delete(req.Header, "Host")
 
 	ctx, cancelCtx := context.WithCancel(ctx)
-	if c.server.UpdateRequestContext != nil {
-		ctx = c.server.UpdateRequestContext(ctx)
-	}
 
 	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
@@ -1731,9 +1729,15 @@ func (c *conn) serve(ctx context.Context) {
 	c.cancelCtx = cancelCtx
 	defer cancelCtx()
 
+	if c.server.UpdateRequestContext != nil {
+		ctx = c.server.UpdateRequestContext(ctx)
+	}
+
 	c.r = &connReader{conn: c}
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+
+	trace := httptrace.ContextServerTrace(ctx)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -1753,6 +1757,12 @@ func (c *conn) serve(ctx context.Context) {
 				const publicErr = "431 Request Header Fields Too Large"
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				c.closeWriteAndWait()
+				if trace != nil && trace.GotBadRequest != nil {
+					trace.GotBadRequest(httptrace.BadRequestInfo{
+						StatusCode: 431,
+						Error:      publicErr,
+					})
+				}
 				return
 			}
 			if isCommonNetReadError(err) {
@@ -1765,6 +1775,12 @@ func (c *conn) serve(ctx context.Context) {
 			}
 
 			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+			if trace != nil && trace.GotBadRequest != nil {
+				trace.GotBadRequest(httptrace.BadRequestInfo{
+					StatusCode: 400,
+					Error:      publicErr,
+				})
+			}
 			return
 		}
 

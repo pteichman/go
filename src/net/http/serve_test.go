@@ -5622,8 +5622,11 @@ func TestServerValidatesMethod(t *testing.T) {
 func TestServerTraceWroteHeader_h1(t *testing.T) { testServerTraceWroteHeader(t, h1Mode) }
 func TestServerTraceWroteHeader_h2(t *testing.T) { testServerTraceWroteHeader(t, h2Mode) }
 func testServerTraceWroteHeader(t *testing.T, h2 bool) {
+	var hookRan bool
 	trace := &httptrace.ServerTrace{
 		WroteHeader: func(info httptrace.WroteHeaderInfo) {
+			hookRan = true
+
 			if info.StatusCode != 200 {
 				t.Fatalf("server trace: expected 200 status; got %d", info.StatusCode)
 			}
@@ -5632,8 +5635,8 @@ func testServerTraceWroteHeader(t *testing.T, h2 bool) {
 		},
 	}
 
-	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
-		// Do nothing; get default 200 reponse
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprint(w, "OK")
 	}), optQuietLog, optServerTrace(trace))
 	defer cst.close()
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
@@ -5647,6 +5650,10 @@ func testServerTraceWroteHeader(t *testing.T, h2 bool) {
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		t.Fatalf("expected 200 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+
+	if !hookRan {
+		t.Fatal("expected WroteHeader trace to execute")
 	}
 
 }

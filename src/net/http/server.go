@@ -995,6 +995,8 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		// and maybe mutates it (Issue 14940)
 		wants10KeepAlive: req.wantsHttp10KeepAlive(),
 		wantsClose:       req.wantsClose(),
+
+		trace: httptrace.ContextServerTrace(ctx),
 	}
 	if isH2Upgrade {
 		w.closeAfterReply = true

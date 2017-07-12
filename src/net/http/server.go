@@ -1767,13 +1767,13 @@ func (c *conn) serve(ctx context.Context) {
 				// request. Undefined behavior.
 				const publicErr = "431 Request Header Fields Too Large"
 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
-				c.closeWriteAndWait()
 				if trace != nil && trace.GotBadRequest != nil {
 					trace.GotBadRequest(httptrace.BadRequestInfo{
 						StatusCode: 431,
 						Error:      publicErr,
 					})
 				}
+				c.closeWriteAndWait()
 				return
 			}
 			if isCommonNetReadError(err) {

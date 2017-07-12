@@ -2682,16 +2682,19 @@ func TestRequestLimit_h2(t *testing.T) { testRequestLimit(t, h2Mode) }
 func testRequestLimit(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
+	var traced bool
 	trace := &httptrace.ServerTrace{
 		GotBadRequest: func(info httptrace.BadRequestInfo) {
 			if info.StatusCode != 431 {
-				t.Fatalf("server trace: expected 431 status; got %d", info.StatusCode)
+				t.Errorf("server trace: expected 431 status; got %d", info.StatusCode)
 			}
 
 			expected := "431 Request Header Fields Too Large"
 			if info.Error != expected {
-				t.Fatalf("server trace: expected %s error; got %s", expected, info.Error)
+				t.Errorf("server trace: expected %q error; got %q", expected, info.Error)
 			}
+
+			traced = true
 		},
 	}
 
@@ -2713,7 +2716,60 @@ func testRequestLimit(t *testing.T, h2 bool) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 431 {
-		t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
+		t.Errorf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+	if !traced {
+		if h2 {
+			t.Skip("h2 not implemented yet")
+		}
+
+		t.Errorf("httptrace.ServerTrace GotBadRequest never called")
+	}
+}
+
+func TestServerTraceBadRequest(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	var traced bool
+	trace := &httptrace.ServerTrace{
+		GotBadRequest: func(info httptrace.BadRequestInfo) {
+			if info.StatusCode != 400 {
+				t.Errorf("server trace: expected 400 status; got %d", info.StatusCode)
+			}
+
+			expected := "400 Bad Request: unsupported protocol version"
+			if info.Error != expected {
+				t.Errorf("server trace: expected %q error; got %q", expected, info.Error)
+			}
+
+			traced = true
+		},
+	}
+
+	conn := &testConn{closec: make(chan bool, 1)}
+	io.WriteString(&conn.readBuf, "GET / HTTP/0.9\r\nHost: foo\r\n\r\n")
+
+	ln := &oneConnListener{conn}
+	srv := Server{
+		ErrorLog: quietLog,
+		Handler: HandlerFunc(func(ResponseWriter, *Request) {
+			t.Fatalf("didn't expect to get request in Handler")
+		}),
+		UpdateRequestContext: func(ctx context.Context) context.Context {
+			return httptrace.WithServerTrace(ctx, trace)
+		},
+	}
+	go srv.Serve(ln)
+	<-conn.closec
+	res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
+	if err != nil {
+		t.Fatalf("ReadResponse: %v", res)
+	}
+	if res.StatusCode != 400 {
+		t.Errorf("expected 400 response status; got %d %s", res.StatusCode, res.Status)
+	}
+	if !traced {
+		t.Errorf("httptrace.ServerTrace GotBadRequest never called")
 	}
 }
 

@@ -5619,6 +5619,38 @@ func TestServerValidatesMethod(t *testing.T) {
 	}
 }
 
+func TestServerTraceWroteHeader_h1(t *testing.T) { testServerTraceWroteHeader(t, h1Mode) }
+func TestServerTraceWroteHeader_h2(t *testing.T) { testServerTraceWroteHeader(t, h2Mode) }
+func testServerTraceWroteHeader(t *testing.T, h2 bool) {
+	trace := &httptrace.ServerTrace{
+		WroteHeader: func(info httptrace.WroteHeaderInfo) {
+			if info.StatusCode != 200 {
+				t.Fatalf("server trace: expected 200 status; got %d", info.StatusCode)
+			}
+
+			// TODO(pteichman) test header values also
+		},
+	}
+
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Do nothing; get default 200 reponse
+	}), optQuietLog, optServerTrace(trace))
+	defer cst.close()
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	res, err := cst.c.Do(req)
+	if err != nil {
+		// Some HTTP clients may fail on this undefined behavior (server replying and
+		// closing the connection while the request is still being written), but
+		// we do support it (at least currently), so we expect a response below.
+		t.Fatalf("Do: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("expected 200 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+
+}
+
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {

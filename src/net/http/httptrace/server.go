@@ -82,6 +82,8 @@ type RequestInfo struct {
 }
 
 type WroteHeaderInfo struct {
+	StatusCode int
+	Header     map[string][]string
 }
 
 type WroteBodyChunkInfo struct {

@@ -450,6 +450,8 @@ type response struct {
 	// non-nil. Make this lazily-created again as it used to be?
 	closeNotifyCh  chan bool
 	didCloseNotify int32 // atomic (only 0->1 winner should send)
+
+	trace *httptrace.ServerTrace // optional
 }
 
 // TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
@@ -1065,6 +1067,13 @@ func (w *response) WriteHeader(code int) {
 			w.conn.server.logf("http: invalid Content-Length of %q", cl)
 			w.handlerHeader.Del("Content-Length")
 		}
+	}
+
+	if w.trace != nil && w.trace.WroteHeader != nil {
+		w.trace.WroteHeader(httptrace.WroteHeaderInfo{
+			StatusCode: code,
+			Header:     map[string][]string(w.handlerHeader),
+		})
 	}
 }
 

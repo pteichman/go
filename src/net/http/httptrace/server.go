@@ -41,6 +41,48 @@ func WithServerTrace(ctx context.Context, trace *ServerTrace) context.Context {
 // called concurrently from different goroutines and some may be called
 // after the request has completed or failed.
 type ServerTrace struct {
+	// Received a bad request (e.g., see errTooLarge in net/http/server.go).
+	// The ServeHTTP handler will not be called.
+	// BadRequestInfo has the status code of the response (the current implementation
+	// can return 431 or 400) and perhaps also the response body, which is an error string.
+	// This addresses https://github.com/golang/go/issues/18095
+	GotBadRequest (BadRequestInfo)
+
+	// Called when receiving a request, just before calling the ServeHTTP handler.
+	// RequestInfo would likely include the URL and Headers of the request (with caveats
+	// about not mutating those values).
+	// This would satisfy https://github.com/golang/go/issues/3344 -- see the linked camlistore code.
+	GotRequest (RequestInfo)
+
+	// Called when the handler calls WriteHeader.
+	// WriteHeaderInfo includes the status and maybe also the headers (with caveats about
+	// not mutating the headers). Or perhaps this is (status, headers) instead of WroteHeaderInfo.
+	// This addresses the current bug.
+	WroteHeader (WroteHeaderInfo)
+
+	// Called each time the handler calls Write. This is the data fed to the ResponseWriter,
+	// e.g., before any transfer encoding. Includes the return values of the Write call.
+	// Caveats about mutating data.
+	// This addresses the current bug.
+	WroteBodyChunk (WroteBodyChunkInfo)
+
+	// Called when the ServeHTTP handler exits.
+	HandlerDone (HandlerDoneInfo)
+}
+
+type BadRequestInfo struct {
+}
+
+type RequestInfo struct {
+}
+
+type WroteHeaderInfo struct {
+}
+
+type WroteBodyChunkInfo struct {
+}
+
+type HandlerDoneInfo struct {
 }
 
 // compose modifies t such that it respects the previously-registered hooks in old,
@@ -51,6 +93,11 @@ func (t *ServerTrace) compose(old *ServerTrace) {
 	}
 	tv := reflect.ValueOf(t).Elem()
 	ov := reflect.ValueOf(old).Elem()
+
+	compose(tv, ov)
+}
+
+func compose(tv, ov reflect.Value) {
 	structType := tv.Type()
 	for i := 0; i < structType.NumField(); i++ {
 		tf := tv.Field(i)

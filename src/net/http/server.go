@@ -965,6 +965,10 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	delete(req.Header, "Host")
 
 	ctx, cancelCtx := context.WithCancel(ctx)
+	if c.server.UpdateRequestContext != nil {
+		ctx = c.server.UpdateRequestContext(ctx)
+	}
+
 	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
@@ -2391,6 +2395,10 @@ type Server struct {
 	// If nil, logging goes to os.Stderr via the log package's
 	// standard logger.
 	ErrorLog *log.Logger
+
+	// TODO(pteichman) documentation
+	// UpdateRequestContext? WrapRequestContext? InitialRequestContext?
+	UpdateRequestContext func(ctx context.Context) context.Context
 
 	disableKeepAlives int32     // accessed atomically.
 	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)

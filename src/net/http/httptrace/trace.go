@@ -166,33 +166,8 @@ func (t *ClientTrace) compose(old *ClientTrace) {
 	}
 	tv := reflect.ValueOf(t).Elem()
 	ov := reflect.ValueOf(old).Elem()
-	structType := tv.Type()
-	for i := 0; i < structType.NumField(); i++ {
-		tf := tv.Field(i)
-		hookType := tf.Type()
-		if hookType.Kind() != reflect.Func {
-			continue
-		}
-		of := ov.Field(i)
-		if of.IsNil() {
-			continue
-		}
-		if tf.IsNil() {
-			tf.Set(of)
-			continue
-		}
 
-		// Make a copy of tf for tf to call. (Otherwise it
-		// creates a recursive call cycle and stack overflows)
-		tfCopy := reflect.ValueOf(tf.Interface())
-
-		// We need to call both tf and of in some order.
-		newFunc := reflect.MakeFunc(hookType, func(args []reflect.Value) []reflect.Value {
-			tfCopy.Call(args)
-			return of.Call(args)
-		})
-		tv.Field(i).Set(newFunc)
-	}
+	compose(tv, ov)
 }
 
 // DNSStartInfo contains information about a DNS request.

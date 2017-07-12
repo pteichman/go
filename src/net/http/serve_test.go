@@ -5718,6 +5718,55 @@ func testServerTraceWroteHeader(t *testing.T, h2 bool) {
 
 }
 
+func TestServerTraceWroteBodyChunk_h1(t *testing.T) { testServerTraceWroteBodyChunk(t, h1Mode) }
+func TestServerTraceWroteBodyChunk_h2(t *testing.T) { testServerTraceWroteBodyChunk(t, h2Mode) }
+func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
+	var traced bool
+	trace := &httptrace.ServerTrace{
+		WroteBodyChunk: func(info httptrace.WroteBodyChunkInfo) {
+			if string(info.Data) != "OK" {
+				t.Fatalf("server trace: expected 'OK' response; got %s", string(info.Data))
+			}
+
+			if info.Len != 2 {
+				t.Fatalf("server trace: expected response length=2; got %d", info.Len)
+			}
+
+			if info.Error != nil {
+				t.Fatalf("server trace: expected nil error; got %d", info.Error)
+			}
+
+			traced = true
+		},
+	}
+
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprint(w, "OK")
+	}), optQuietLog, optServerTrace(trace))
+	defer cst.close()
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	res, err := cst.c.Do(req)
+	if err != nil {
+		// Some HTTP clients may fail on this undefined behavior (server replying and
+		// closing the connection while the request is still being written), but
+		// we do support it (at least currently), so we expect a response below.
+		t.Fatalf("Do: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("expected 200 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+
+	if !traced {
+		if h2 {
+			t.Skip("h2 not implemented yet")
+		}
+
+		t.Error("httptrace.ServerTrace WroteHeader never called")
+	}
+
+}
+
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {

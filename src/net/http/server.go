@@ -1476,7 +1476,17 @@ func (w *response) bodyAllowed() bool {
 // bufferBeforeChunkingSize smaller and having bufio's fast-paths deal
 // with this instead.
 func (w *response) Write(data []byte) (n int, err error) {
-	return w.write(len(data), data, "")
+	n, err = w.write(len(data), data, "")
+
+	if w.trace != nil && w.trace.WroteBodyChunk != nil {
+		w.trace.WroteBodyChunk(httptrace.WroteBodyChunkInfo{
+			Data:  data,
+			Len:   n,
+			Error: err,
+		})
+	}
+
+	return n, err
 }
 
 func (w *response) WriteString(data string) (n int, err error) {

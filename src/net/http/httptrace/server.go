@@ -87,6 +87,9 @@ type WroteHeaderInfo struct {
 }
 
 type WroteBodyChunkInfo struct {
+	Data  []byte
+	Len   int
+	Error error
 }
 
 type HandlerDoneInfo struct {

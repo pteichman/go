@@ -5675,6 +5675,42 @@ func TestServerValidatesMethod(t *testing.T) {
 	}
 }
 
+func TestServerTraceHandlerDone_h1(t *testing.T) { testServerTraceHandlerDone(t, h1Mode) }
+func TestServerTraceHandlerDone_h2(t *testing.T) { testServerTraceHandlerDone(t, h2Mode) }
+func testServerTraceHandlerDone(t *testing.T, h2 bool) {
+	var traced bool
+	trace := &httptrace.ServerTrace{
+		HandlerDone: func(info httptrace.HandlerDoneInfo) {
+			traced = true
+		},
+	}
+
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprint(w, "OK")
+	}), optQuietLog, optServerTrace(trace))
+	defer cst.close()
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	res, err := cst.c.Do(req)
+	if err != nil {
+		// Some HTTP clients may fail on this undefined behavior (server replying and
+		// closing the connection while the request is still being written), but
+		// we do support it (at least currently), so we expect a response below.
+		t.Fatalf("Do: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("expected 200 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+
+	if !traced {
+		if h2 {
+			t.Skip("h2 not implemented yet")
+		}
+
+		t.Error("httptrace.ServerTrace HandlerDone never called")
+	}
+}
+
 func TestServerTraceWroteHeader_h1(t *testing.T) { testServerTraceWroteHeader(t, h1Mode) }
 func TestServerTraceWroteHeader_h2(t *testing.T) { testServerTraceWroteHeader(t, h2Mode) }
 func testServerTraceWroteHeader(t *testing.T, h2 bool) {
@@ -5715,7 +5751,6 @@ func testServerTraceWroteHeader(t *testing.T, h2 bool) {
 
 		t.Error("httptrace.ServerTrace WroteHeader never called")
 	}
-
 }
 
 func TestServerTraceWroteBodyChunk_h1(t *testing.T) { testServerTraceWroteBodyChunk(t, h1Mode) }
@@ -5762,9 +5797,8 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 			t.Skip("h2 not implemented yet")
 		}
 
-		t.Error("httptrace.ServerTrace WroteHeader never called")
+		t.Error("httptrace.ServerTrace WroteBodyChunk never called")
 	}
-
 }
 
 func BenchmarkResponseStatusLine(b *testing.B) {

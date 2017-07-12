@@ -1865,6 +1865,10 @@ func (c *conn) serve(ctx context.Context) {
 			}
 		}
 		c.rwc.SetReadDeadline(time.Time{})
+
+		if w.trace != nil && w.trace.HandlerDone != nil {
+			w.trace.HandlerDone(httptrace.HandlerDoneInfo{})
+		}
 	}
 }
 

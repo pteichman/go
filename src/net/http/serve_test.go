@@ -5797,6 +5797,113 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 	}
 }
 
+func TestServerTrace(t *testing.T) {
+	type requestInfo struct {
+		path       string
+		statusCode int
+		size       int
+		done       bool
+	}
+
+	const key = "requestInfo"
+
+	requests := make(chan requestInfo)
+
+	traceRequest := func(ctx context.Context) context.Context {
+		var ri requestInfo
+
+		trace := &httptrace.ServerTrace{
+			GotRequest: func(info httptrace.RequestInfo) {
+				path := info.URL.Path
+				fmt.Printf("GotRequest for %s\n", path)
+
+				if ri.path != "" {
+					t.Errorf("unexpected extra GotRequest for %s", path)
+				}
+
+				ri.path = path
+			},
+			WroteHeader: func(info httptrace.WroteHeaderInfo) {
+				fmt.Println("WroteHeader")
+				if ri.path == "" {
+					t.Errorf("did not receive GotRequest before WroteHeader")
+					return
+				}
+
+				ri.statusCode = info.StatusCode
+			},
+			WroteBodyChunk: func(info httptrace.WroteBodyChunkInfo) {
+				fmt.Println("WroteBodyChunk")
+				if ri.path == "" {
+					t.Errorf("did not receive GotRequest before WroteBodyChunk")
+					return
+				}
+
+				ri.size += len(info.Written)
+			},
+			HandlerDone: func(info httptrace.HandlerDoneInfo) {
+				fmt.Println("HandlerDone")
+				if ri.path == "" {
+					t.Errorf("did not receive GotRequest before HandlerDone")
+					return
+				}
+
+				requests <- ri
+			},
+		}
+
+		return httptrace.WithServerTrace(ctx, trace)
+	}
+
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
+		fmt.Fprint(res, req.URL.Path)
+	}))
+	ts.Config.UpdateRequestContext = traceRequest
+	ts.Start()
+	defer ts.Close()
+
+	cases := []struct {
+		path string
+	}{
+		{path: "/path1"},
+		{path: "/path2"},
+	}
+
+	seen := 0
+	for _, tc := range cases {
+		c := ts.Client()
+		res, err := c.Get(ts.URL + tc.path)
+		if err != nil {
+			t.Fatalf("%s: %s", tc.path, err)
+		}
+		res.Body.Close()
+
+		select {
+		case ri := <-requests:
+			if ri.path != tc.path {
+				t.Errorf("expected path %s, got %s", tc.path, ri.path)
+			}
+
+			if ri.statusCode != StatusOK {
+				t.Errorf("%s: expected status code 200, got %s", tc.path, ri.statusCode)
+			}
+
+			if ri.size != len(tc.path) {
+				t.Errorf("%s: expected size %d, got %d", tc.path, len(tc.path), ri.size)
+			}
+
+			seen++
+
+		case <-time.After(5 * time.Second):
+			t.Errorf("%s: timed out waiting for response", tc.path)
+		}
+	}
+
+	if seen != len(cases) {
+		t.Errorf("expected %d responses, got %d", len(cases), seen)
+	}
+}
+
 func BenchmarkResponseStatusLine(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {

@@ -5763,14 +5763,6 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 				t.Fatalf("server trace: expected 'OK' response; got %s", string(info.Data))
 			}
 
-			if info.Len != 2 {
-				t.Fatalf("server trace: expected response length=2; got %d", info.Len)
-			}
-
-			if info.Error != nil {
-				t.Fatalf("server trace: expected nil error; got %d", info.Error)
-			}
-
 			traced = true
 		},
 	}

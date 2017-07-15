@@ -1478,11 +1478,9 @@ func (w *response) bodyAllowed() bool {
 func (w *response) Write(data []byte) (n int, err error) {
 	n, err = w.write(len(data), data, "")
 
-	if w.trace != nil && w.trace.WroteBodyChunk != nil {
+	if n > 0 && w.trace != nil && w.trace.WroteBodyChunk != nil {
 		w.trace.WroteBodyChunk(httptrace.WroteBodyChunkInfo{
-			Data:  data,
-			Len:   n,
-			Error: err,
+			Data: data[:n],
 		})
 	}
 

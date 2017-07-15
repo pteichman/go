@@ -53,7 +53,10 @@ type ServerTrace struct {
 	// RequestInfo would likely include the URL and Headers of the request (with caveats
 	// about not mutating those values).
 	// This would satisfy https://github.com/golang/go/issues/3344 -- see the linked camlistore code.
-	GotRequest func(RequestInfo)
+	BeforeHandler func(BeforeHandlerInfo)
+
+	// Called when the ServeHTTP handler exits.
+	AfterHandler func(AfterHandlerInfo)
 
 	// Called when the handler calls WriteHeader.
 	// WriteHeaderInfo includes the status and maybe also the headers (with caveats about
@@ -66,9 +69,6 @@ type ServerTrace struct {
 	// Caveats about mutating data.
 	// This addresses the current bug.
 	WroteBodyChunk func(WroteBodyChunkInfo)
-
-	// Called when the ServeHTTP handler exits.
-	HandlerDone func(HandlerDoneInfo)
 }
 
 type BadRequestInfo struct {
@@ -79,12 +79,15 @@ type BadRequestInfo struct {
 	Error string
 }
 
-type RequestInfo struct {
+type BeforeHandlerInfo struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
 	Method string
 
 	// URL specifies the URL being requested.
 	URL *url.URL
+}
+
+type AfterHandlerInfo struct {
 }
 
 type WroteHeaderInfo struct {
@@ -94,9 +97,6 @@ type WroteHeaderInfo struct {
 
 type WroteBodyChunkInfo struct {
 	Written []byte
-}
-
-type HandlerDoneInfo struct {
 }
 
 // compose modifies t such that it respects the previously-registered hooks in old,

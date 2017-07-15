@@ -1809,8 +1809,8 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
-		if w.trace != nil && w.trace.GotRequest != nil {
-			w.trace.GotRequest(httptrace.RequestInfo{
+		if w.trace != nil && w.trace.BeforeHandler != nil {
+			w.trace.BeforeHandler(httptrace.BeforeHandlerInfo{
 				Method: w.req.Method,
 				URL:    w.req.URL,
 			})
@@ -1877,8 +1877,8 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		c.rwc.SetReadDeadline(time.Time{})
 
-		if w.trace != nil && w.trace.HandlerDone != nil {
-			w.trace.HandlerDone(httptrace.HandlerDoneInfo{})
+		if w.trace != nil && w.trace.AfterHandler != nil {
+			w.trace.AfterHandler(httptrace.AfterHandlerInfo{})
 		}
 	}
 }

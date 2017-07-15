@@ -5680,7 +5680,7 @@ func TestServerTraceHandlerDone_h2(t *testing.T) { testServerTraceHandlerDone(t,
 func testServerTraceHandlerDone(t *testing.T, h2 bool) {
 	var traced bool
 	trace := &httptrace.ServerTrace{
-		HandlerDone: func(info httptrace.HandlerDoneInfo) {
+		AfterHandler: func(info httptrace.AfterHandlerInfo) {
 			traced = true
 		},
 	}
@@ -5812,12 +5812,12 @@ func TestServerTrace(t *testing.T) {
 		var ri requestInfo
 
 		trace := &httptrace.ServerTrace{
-			GotRequest: func(info httptrace.RequestInfo) {
+			BeforeHandler: func(info httptrace.BeforeHandlerInfo) {
 				path := info.URL.Path
-				fmt.Printf("GotRequest for %s\n", path)
+				fmt.Printf("BeforeHandler for %s\n", path)
 
 				if ri.path != "" {
-					t.Errorf("unexpected extra GotRequest for %s", path)
+					t.Errorf("unexpected extra BeforeHandler for %s", path)
 				}
 
 				ri.path = path
@@ -5841,10 +5841,10 @@ func TestServerTrace(t *testing.T) {
 
 				ri.size += len(info.Written)
 			},
-			HandlerDone: func(info httptrace.HandlerDoneInfo) {
-				fmt.Println("HandlerDone")
+			AfterHandler: func(info httptrace.AfterHandlerInfo) {
+				fmt.Println("AfterHandler")
 				if ri.path == "" {
-					t.Errorf("did not receive GotRequest before HandlerDone")
+					t.Errorf("did not receive GotRequest before AfterHandler")
 					return
 				}
 

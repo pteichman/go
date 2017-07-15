@@ -5805,8 +5805,6 @@ func TestServerTrace(t *testing.T) {
 		done       bool
 	}
 
-	const key = "requestInfo"
-
 	requests := make(chan requestInfo)
 
 	traceRequest := func(ctx context.Context) context.Context {

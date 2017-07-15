@@ -1811,7 +1811,8 @@ func (c *conn) serve(ctx context.Context) {
 
 		if w.trace != nil && w.trace.GotRequest != nil {
 			w.trace.GotRequest(httptrace.RequestInfo{
-				URL: w.req.URL,
+				Method: w.req.Method,
+				URL:    w.req.URL,
 			})
 		}
 

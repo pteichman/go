@@ -5800,6 +5800,7 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 func TestServerTrace(t *testing.T) {
 	type requestInfo struct {
 		path       string
+		method     string
 		statusCode int
 		size       int
 		done       bool
@@ -5820,6 +5821,7 @@ func TestServerTrace(t *testing.T) {
 				}
 
 				ri.path = path
+				ri.method = info.Method
 			},
 			WroteHeader: func(info httptrace.WroteHeaderInfo) {
 				fmt.Println("WroteHeader")
@@ -5880,6 +5882,10 @@ func TestServerTrace(t *testing.T) {
 		case ri := <-requests:
 			if ri.path != tc.path {
 				t.Errorf("expected path %s, got %s", tc.path, ri.path)
+			}
+
+			if ri.method != "GET" {
+				t.Errorf("%s: expected method GET, got %s", tc.path, ri.method)
 			}
 
 			if ri.statusCode != StatusOK {

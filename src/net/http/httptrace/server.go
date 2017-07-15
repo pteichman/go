@@ -80,6 +80,10 @@ type BadRequestInfo struct {
 }
 
 type RequestInfo struct {
+	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+	Method string
+
+	// URL specifies the URL being requested.
 	URL *url.URL
 }
 

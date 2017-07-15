@@ -969,6 +969,10 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 
 	ctx, cancelCtx := context.WithCancel(ctx)
 
+	if c.server.UpdateRequestContext != nil {
+		ctx = c.server.UpdateRequestContext(ctx)
+	}
+
 	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
@@ -1748,15 +1752,9 @@ func (c *conn) serve(ctx context.Context) {
 	c.cancelCtx = cancelCtx
 	defer cancelCtx()
 
-	if c.server.UpdateRequestContext != nil {
-		ctx = c.server.UpdateRequestContext(ctx)
-	}
-
 	c.r = &connReader{conn: c}
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
-
-	trace := httptrace.ContextServerTrace(ctx)
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -1765,6 +1763,14 @@ func (c *conn) serve(ctx context.Context) {
 			c.setState(c.rwc, StateActive)
 		}
 		if err != nil {
+			// Synthesize a request context for tracing bad
+			// requests, if possible.
+			if c.server.UpdateRequestContext != nil {
+				ctx = c.server.UpdateRequestContext(ctx)
+			}
+
+			trace := httptrace.ContextServerTrace(ctx)
+
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
 			if err == errTooLarge {

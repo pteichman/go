@@ -8,6 +8,7 @@ package httptrace
 
 import (
 	"context"
+	"net/url"
 	"reflect"
 )
 
@@ -79,6 +80,7 @@ type BadRequestInfo struct {
 }
 
 type RequestInfo struct {
+	URL *url.URL
 }
 
 type WroteHeaderInfo struct {

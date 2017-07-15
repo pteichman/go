@@ -1809,6 +1809,12 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
+		if w.trace != nil && w.trace.GotRequest != nil {
+			w.trace.GotRequest(httptrace.RequestInfo{
+				URL: w.req.URL,
+			})
+		}
+
 		// Expect 100 Continue support
 		req := w.req
 		if req.expectsContinue() {

@@ -5721,13 +5721,17 @@ func testServerTraceWroteHeader(t *testing.T, h2 bool) {
 				t.Fatalf("server trace: expected 200 status; got %d", info.StatusCode)
 			}
 
-			// TODO(pteichman) test header values also
+			h := Header(info.Header)
+			if h.Get("Header") != "OK" {
+				t.Fatalf("server trace: expected Header: OK; got %s", h.Get("Header"))
+			}
 
 			traced = true
 		},
 	}
 
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Add("Header", "OK")
 		fmt.Fprint(w, "OK")
 	}), optQuietLog, optServerTrace(trace))
 	defer cst.close()

@@ -86,9 +86,8 @@ type WroteHeaderInfo struct {
 	Header     map[string][]string
 }
 
-// TODO(pteichman) "Data" is awful
 type WroteBodyChunkInfo struct {
-	Data []byte
+	Written []byte
 }
 
 type HandlerDoneInfo struct {

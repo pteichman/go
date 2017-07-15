@@ -5763,8 +5763,8 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 	var traced bool
 	trace := &httptrace.ServerTrace{
 		WroteBodyChunk: func(info httptrace.WroteBodyChunkInfo) {
-			if string(info.Data) != "OK" {
-				t.Fatalf("server trace: expected 'OK' response; got %s", string(info.Data))
+			if string(info.Written) != "OK" {
+				t.Fatalf("server trace: expected 'OK' response; got %s", string(info.Written))
 			}
 
 			traced = true

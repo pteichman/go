@@ -1484,7 +1484,7 @@ func (w *response) Write(data []byte) (n int, err error) {
 
 	if n > 0 && w.trace != nil && w.trace.WroteBodyChunk != nil {
 		w.trace.WroteBodyChunk(httptrace.WroteBodyChunkInfo{
-			Data: data[:n],
+			Written: data[:n],
 		})
 	}
 

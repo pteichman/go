@@ -5675,9 +5675,9 @@ func TestServerValidatesMethod(t *testing.T) {
 	}
 }
 
-func TestServerTraceHandlerDone_h1(t *testing.T) { testServerTraceHandlerDone(t, h1Mode) }
-func TestServerTraceHandlerDone_h2(t *testing.T) { testServerTraceHandlerDone(t, h2Mode) }
-func testServerTraceHandlerDone(t *testing.T, h2 bool) {
+func TestServerTraceAfterHandler_h1(t *testing.T) { testServerTraceAfterHandler(t, h1Mode) }
+func TestServerTraceAfterHandler_h2(t *testing.T) { testServerTraceAfterHandler(t, h2Mode) }
+func testServerTraceAfterHandler(t *testing.T, h2 bool) {
 	var traced bool
 	trace := &httptrace.ServerTrace{
 		AfterHandler: func(info httptrace.AfterHandlerInfo) {
@@ -5707,7 +5707,7 @@ func testServerTraceHandlerDone(t *testing.T, h2 bool) {
 			t.Skip("h2 not implemented yet")
 		}
 
-		t.Error("httptrace.ServerTrace HandlerDone never called")
+		t.Error("httptrace.ServerTrace AfterHandler never called")
 	}
 }
 
@@ -5800,11 +5800,12 @@ func testServerTraceWroteBodyChunk(t *testing.T, h2 bool) {
 func TestServerTrace(t *testing.T) {
 	type requestInfo struct {
 		path       string
-		method     string
 		statusCode int
 		size       int
 		done       bool
 	}
+
+	const key = "requestInfo"
 
 	requests := make(chan requestInfo)
 
@@ -5821,12 +5822,11 @@ func TestServerTrace(t *testing.T) {
 				}
 
 				ri.path = path
-				ri.method = info.Method
 			},
 			WroteHeader: func(info httptrace.WroteHeaderInfo) {
 				fmt.Println("WroteHeader")
 				if ri.path == "" {
-					t.Errorf("did not receive GotRequest before WroteHeader")
+					t.Errorf("did not receive BeforeHandler before WroteHeader")
 					return
 				}
 
@@ -5835,7 +5835,7 @@ func TestServerTrace(t *testing.T) {
 			WroteBodyChunk: func(info httptrace.WroteBodyChunkInfo) {
 				fmt.Println("WroteBodyChunk")
 				if ri.path == "" {
-					t.Errorf("did not receive GotRequest before WroteBodyChunk")
+					t.Errorf("did not receive BeforeHandler before WroteBodyChunk")
 					return
 				}
 
@@ -5844,7 +5844,7 @@ func TestServerTrace(t *testing.T) {
 			AfterHandler: func(info httptrace.AfterHandlerInfo) {
 				fmt.Println("AfterHandler")
 				if ri.path == "" {
-					t.Errorf("did not receive GotRequest before AfterHandler")
+					t.Errorf("did not receive BeforeHandler before AfterHandler")
 					return
 				}
 
@@ -5882,10 +5882,6 @@ func TestServerTrace(t *testing.T) {
 		case ri := <-requests:
 			if ri.path != tc.path {
 				t.Errorf("expected path %s, got %s", tc.path, ri.path)
-			}
-
-			if ri.method != "GET" {
-				t.Errorf("%s: expected method GET, got %s", tc.path, ri.method)
 			}
 
 			if ri.statusCode != StatusOK {
